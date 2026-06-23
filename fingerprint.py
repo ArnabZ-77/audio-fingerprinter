@@ -30,18 +30,24 @@ def generate_hashes(peaks, target_zone_dt=(1, 50), target_zone_df=(-30, 30)):
             dt = t2 - t1
             df = f2 - f1
             
-            if target_zone_dt[0] <= dt <= target_zone_dt[1] and target_zone_df[0] <= df <= target_zone_df[1]:
-                hash_key = (f1, f2, dt)
-                if hash_key not in hashes:
-                    hashes[hash_key] = []
-                hashes[hash_key].append(t1)
+            if dt > target_zone_dt[1]:
+                break
+                
+            if target_zone_dt[0] <= dt:
+                if target_zone_df[0] <= df <= target_zone_df[1]:
+                    hash_key = (f1, f2, dt)
+                    if hash_key not in hashes:
+                        hashes[hash_key] = []
+                    hashes[hash_key].append(t1)
     return hashes
 
 def build_database(song_library_dir, output_pkl="database_index.pkl"):
     """Saves structured map containing inverted hash lookups along with visualization metadata."""
     database = {
-        "index": {},  # { hash_key: [(song_name, t1), ...] }
-        "songs": {}   # { song_name: { "hash_count": X, "peaks": [...] } }
+        "index": {},  # { hash_key: [(song_id, t1), ...] }
+        "songs": {},  # { song_name: { "hash_count": X, "peaks": [...] } }
+        "id_to_song": {},  # { song_id: song_name }
+        "song_to_id": {}   # { song_name: song_id }
     }
     if not os.path.exists(song_library_dir):
         print(f"Directory '{song_library_dir}' not found.")
@@ -52,8 +58,16 @@ def build_database(song_library_dir, output_pkl="database_index.pkl"):
         print(f"No audio files found in '{song_library_dir}' folder!")
         return
 
+    # Initialize song IDs mapping
+    sorted_files = sorted(files)
+    for idx, filename in enumerate(sorted_files):
+        song_name = os.path.splitext(filename)[0]
+        database["song_to_id"][song_name] = idx
+        database["id_to_song"][idx] = song_name
+
     for filename in files:
         song_name = os.path.splitext(filename)[0]
+        song_id = database["song_to_id"][song_name]
         filepath = os.path.join(song_library_dir, filename)
         print(f"Indexing track: {song_name}...")
         
@@ -68,7 +82,7 @@ def build_database(song_library_dir, output_pkl="database_index.pkl"):
                 if hash_key not in database["index"]:
                     database["index"][hash_key] = []
                 for t1 in t1_list:
-                    database["index"][hash_key].append((song_name, t1))
+                    database["index"][hash_key].append((song_id, t1))
                     total_hashes += 1
             
             # Keep downsampled sample peaks list to display library thumbnail maps instantly
@@ -79,11 +93,16 @@ def build_database(song_library_dir, output_pkl="database_index.pkl"):
         except Exception as e:
             print(f"Error parsing {filename}: {e}")
                     
-    with open(output_pkl, "wb") as f:
-        pickle.dump(database, f)
+    if output_pkl.endswith(".gz"):
+        import gzip
+        with gzip.open(output_pkl, "wb") as f:
+            pickle.dump(database, f, protocol=pickle.HIGHEST_PROTOCOL)
+    else:
+        with open(output_pkl, "wb") as f:
+            pickle.dump(database, f, protocol=pickle.HIGHEST_PROTOCOL)
     print(f"\nSuccess! Saved database index file to '{output_pkl}' containing {len(database['songs'])} songs.")
 
-def match_clip(query_filepath, database):
+def match_clip(query_filepath, database, threshold_db=-45, neighborhood_size=15, target_zone_dt=(1, 50), target_zone_df=(-30, 30)):
     """Executes full diagnostic pipeline while logging timeline profiles matching the demo specs."""
     metrics = {}
     
@@ -96,13 +115,13 @@ def match_clip(query_filepath, database):
     
     # 2. Constellation
     t_start = time.time()
-    peaks = get_constellation_map(stft_db)
+    peaks = get_constellation_map(stft_db, threshold_db=threshold_db, neighborhood_size=neighborhood_size)
     metrics["constellation_time"] = int((time.time() - t_start) * 1000)
     metrics["peak_count"] = len(peaks)
     
     # 3. Hashes
     t_start = time.time()
-    query_hashes = generate_hashes(peaks)
+    query_hashes = generate_hashes(peaks, target_zone_dt=target_zone_dt, target_zone_df=target_zone_df)
     total_q_hashes = sum(len(v) for v in query_hashes.values())
     metrics["hashes_time"] = int((time.time() - t_start) * 1000)
     metrics["hash_count"] = total_q_hashes
@@ -112,7 +131,11 @@ def match_clip(query_filepath, database):
     matches = {}
     for hash_key, q_t1_list in query_hashes.items():
         if hash_key in database["index"]:
-            for song_name, db_t1 in database["index"][hash_key]:
+            for song_ref, db_t1 in database["index"][hash_key]:
+                if isinstance(song_ref, int):
+                    song_name = database.get("id_to_song", {}).get(song_ref, str(song_ref))
+                else:
+                    song_name = song_ref
                 for q_t1 in q_t1_list:
                     offset = db_t1 - q_t1
                     if song_name not in matches:

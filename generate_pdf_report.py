@@ -26,9 +26,9 @@ def create_report(output_filename="Q3A_Audio_Fingerprinting_Report.pdf"):
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontSize=24,
+        fontSize=22,
         textColor=HexColor('#1f4788'),
-        spaceAfter=12,
+        spaceAfter=10,
         alignment=TA_CENTER,
         fontName='Helvetica-Bold'
     )
@@ -36,43 +36,62 @@ def create_report(output_filename="Q3A_Audio_Fingerprinting_Report.pdf"):
     heading_style = ParagraphStyle(
         'CustomHeading',
         parent=styles['Heading2'],
-        fontSize=14,
+        fontSize=13,
         textColor=HexColor('#2d5a96'),
-        spaceAfter=8,
-        spaceBefore=12,
+        spaceAfter=6,
+        spaceBefore=10,
         fontName='Helvetica-Bold'
     )
     
     subheading_style = ParagraphStyle(
         'CustomSubHeading',
         parent=styles['Heading3'],
-        fontSize=11,
+        fontSize=10.5,
         textColor=HexColor('#444444'),
-        spaceAfter=6,
-        spaceBefore=6,
+        spaceAfter=4,
+        spaceBefore=4,
         fontName='Helvetica-Bold'
     )
     
     body_style = ParagraphStyle(
         'CustomBody',
         parent=styles['BodyText'],
-        fontSize=10,
+        fontSize=9.5,
         alignment=TA_JUSTIFY,
-        spaceAfter=6,
-        leading=14
+        spaceAfter=4,
+        leading=13
     )
     
     story = []
     
     # ============= TITLE PAGE =============
-    story.append(Spacer(1, 0.5*inch))
+    story.append(Spacer(1, 0.4*inch))
     story.append(Paragraph("EE200: SIGNALS, SYSTEMS & NETWORKS", title_style))
-    story.append(Spacer(1, 0.2*inch))
+    story.append(Spacer(1, 0.1*inch))
     story.append(Paragraph("Q3A: Sonic Signatures - Audio Fingerprinting Analysis", title_style))
-    story.append(Spacer(1, 0.3*inch))
+    story.append(Spacer(1, 0.2*inch))
+    
+    # Students Info
+    student_style = ParagraphStyle(
+        'StudentInfo',
+        parent=styles['Normal'],
+        fontSize=11,
+        alignment=TA_CENTER,
+        textColor=HexColor('#333333'),
+        leading=16,
+        spaceAfter=12
+    )
+    student_info = """
+    <b>Prepared By:</b><br/>
+    Arnab Patra (Roll: 240186)<br/>
+    Akshita (Roll: 240090)<br/>
+    """
+    story.append(Paragraph(student_info, student_style))
+    story.append(Spacer(1, 0.2*inch))
+    
     story.append(Paragraph(f"Report Generated: {datetime.now().strftime('%B %d, %Y')}", 
                           ParagraphStyle('meta', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER)))
-    story.append(Spacer(1, 0.8*inch))
+    story.append(Spacer(1, 0.5*inch))
     
     # Executive Summary
     story.append(Paragraph("Executive Summary", heading_style))
@@ -187,24 +206,26 @@ def create_report(output_filename="Q3A_Audio_Fingerprinting_Report.pdf"):
     story.append(Paragraph("Approach:", subheading_style))
     exp3_approach = """
     We add Gaussian noise (σ=0.15) to the clean audio and extract constellation peaks using the same threshold (-45 dB). 
-    Compare the clean vs. noisy peak distributions.
+    We also conduct a noise level sweep (varying standard deviation from 0.0 to 1.0) and record the vote count.
     """
     story.append(Paragraph(exp3_approach, body_style))
-    story.append(Spacer(1, 0.15*inch))
+    story.append(Spacer(1, 0.1*inch))
     
     if os.path.exists("report_figures/exp3_noise_robustness.png"):
-        story.append(Image("report_figures/exp3_noise_robustness.png", width=6.5*inch, height=2.5*inch))
+        story.append(Image("report_figures/exp3_noise_robustness.png", width=6.5*inch, height=2.2*inch))
+    story.append(Spacer(1, 0.1*inch))
+    if os.path.exists("report_figures/exp3_noise_sweep.png"):
+        story.append(Image("report_figures/exp3_noise_sweep.png", width=5.5*inch, height=2.2*inch))
+    story.append(Spacer(1, 0.1*inch))
     
-    story.append(Spacer(1, 0.15*inch))
     story.append(Paragraph("Observations:", subheading_style))
     exp3_obs = """
-    <b>Left (Clean):</b> Sharp, well-defined peaks form a constellation. Many local maxima exceed the threshold.<br/><br/>
-    <b>Right (Noisy):</b> Additional peaks appear due to noise spikes, but the <b>original strong peaks persist</b>. 
+    <b>Noisy Constellation Map:</b> Additional peaks appear due to noise spikes, but the <b>original strong peaks persist</b>. 
     The noise mostly adds clutter at lower amplitudes. Since we use a fixed dB threshold, genuine music peaks 
     (much louder than noise) remain detectable.<br/><br/>
-    <b>Key insight:</b> Storing only local maxima above a threshold makes the fingerprint naturally robust to 
-    additive noise. Volume scaling (dB conversion) means the system is also robust to gain changes (microphone distance, 
-    speaker volume).
+    <b>Noise Robustness Sweep:</b> The vote count decreases as the noise level increases, but the system successfully 
+    identifies the song up to a standard deviation of 1.0 (noise level equal to signal amplitude). This demonstrates 
+    the system's remarkable robustness to café-like chatter and background noise.
     """
     story.append(Paragraph(exp3_obs, body_style))
     story.append(PageBreak())
@@ -264,30 +285,29 @@ def create_report(output_filename="Q3A_Audio_Fingerprinting_Report.pdf"):
     • Original signal<br/>
     • Pitched up: +3 semitones (~7.1% frequency shift)<br/>
     • Pitched down: -3 semitones (~6.7% frequency shift)<br/>
-    Then extract spectrogram and peaks for each.
+    We also conduct a pitch shift sweep from -3.0 to +3.0 semitones and measure the matching votes.
     """
     story.append(Paragraph(exp5_approach, body_style))
-    story.append(Spacer(1, 0.15*inch))
+    story.append(Spacer(1, 0.1*inch))
     
     if os.path.exists("report_figures/exp5_pitch_shift.png"):
-        story.append(Image("report_figures/exp5_pitch_shift.png", width=6.5*inch, height=3.5*inch))
+        story.append(Image("report_figures/exp5_pitch_shift.png", width=6.5*inch, height=2.5*inch))
+    story.append(Spacer(1, 0.1*inch))
+    if os.path.exists("report_figures/exp5_pitch_sweep.png"):
+        story.append(Image("report_figures/exp5_pitch_sweep.png", width=5.5*inch, height=2.2*inch))
+    story.append(Spacer(1, 0.1*inch))
     
-    story.append(Spacer(1, 0.15*inch))
     story.append(Paragraph("Observations:", subheading_style))
     exp5_obs = """
-    <b>Top left (Original):</b> Peaks at their natural frequency bins.<br/><br/>
-    <b>Top right (Pitched up +3 semitones):</b> <b>All peaks shift to higher frequency bins</b>. The spectral 
-    pattern is identical, just shifted upward in frequency.<br/><br/>
-    <b>Bottom left (Pitched down):</b> Peaks shift to lower bins.<br/><br/>
-    <b>Bottom right (Frequency comparison):</b> The pitch-shifted versions have peaks at different bin indices. 
-    Our hash keys include absolute frequencies (f1, f2), so a shifted peak that was at bin 100 now at bin 110 
-    creates a completely different hash.<br/><br/>
-    <b>Failure mechanism:</b> Our system is <b>NOT pitch-invariant</b>. A +3 semitone shift defeats matching 
-    even though the human ear perceives the same melody. This is because we store absolute frequency bins, 
-    not relative frequency relationships (e.g., interval ratios).<br/><br/>
-    <b>To fix this:</b> Use relative intervals instead: hash keys could be (f2 - f1, Δt) rather than (f1, f2, Δt). 
-    This way, a global frequency shift leaves the intervals unchanged. Alternatively, use a reference pitch (e.g., A4=440 Hz) 
-    and store semitone offsets instead of absolute bins.
+    <b>Spectrogram Shifts:</b> Pitch shifting transposes the frequencies, shifting peaks vertically in the spectrogram.<br/><br/>
+    <b>Pitch Robustness Sweep:</b> The pitch sweep demonstrates that **even a small pitch shift (e.g. ±0.5 semitones) causes 
+    a massive drop in votes**, and shifts larger than 1 semitone cause matching to fail completely. 
+    This occurs because our hash keys rely on absolute frequency bin indices `(f1, f2)`. Even though a transposed song 
+    sounds the same to a human (retaining the relative intervals), the absolute frequencies shift into different bins, 
+    creating entirely different hashes.<br/><br/>
+    <b>Proposed Change for Pitch Invariance:</b> Replace absolute frequency bins in the hash key with relative intervals: 
+    use `(f2 - f1, dt)` instead of `(f1, f2, dt)`. Because transposing a song shifts all frequencies by a constant scale factor, 
+    the differences `(f2 - f1)` in a logarithmic scale (or pitch intervals) remain unchanged.
     """
     story.append(Paragraph(exp5_obs, body_style))
     story.append(PageBreak())
@@ -296,8 +316,7 @@ def create_report(output_filename="Q3A_Audio_Fingerprinting_Report.pdf"):
     story.append(Paragraph("Experiment 6: Robustness to Time Stretch", heading_style))
     story.append(Paragraph("Motivation:", subheading_style))
     exp6_motivation = """
-    Songs are sometimes time-stretched (sped up or slowed down) during broadcast, DJing, or when transferred 
-    between systems at different playback speeds. Can we still identify a 20% slower version?
+    Songs are sometimes time-stretched (sped up or slowed down) during DJing or broadcasts. Can we still identify a 20% slower version?
     """
     story.append(Paragraph(exp6_motivation, body_style))
     story.append(Spacer(1, 0.1*inch))
@@ -306,30 +325,29 @@ def create_report(output_filename="Q3A_Audio_Fingerprinting_Report.pdf"):
     exp6_approach = """
     We apply time stretching (without changing pitch):<br/>
     • Original signal<br/>
-    • Stretched 20% slower (rate=1.2): more frames, same frequencies<br/>
-    • Squeezed 20% faster (rate=0.8): fewer frames, same frequencies
+    • Stretched 20% slower (rate=1.2)<br/>
+    • Squeezed 20% faster (rate=0.8)<br/>
+    We also conduct a time-stretch sweep from 0.8x to 1.2x playback rate.
     """
     story.append(Paragraph(exp6_approach, body_style))
-    story.append(Spacer(1, 0.15*inch))
+    story.append(Spacer(1, 0.1*inch))
     
     if os.path.exists("report_figures/exp6_time_stretch.png"):
-        story.append(Image("report_figures/exp6_time_stretch.png", width=6.5*inch, height=2.2*inch))
+        story.append(Image("report_figures/exp6_time_stretch.png", width=6.5*inch, height=1.8*inch))
+    story.append(Spacer(1, 0.1*inch))
+    if os.path.exists("report_figures/exp6_time_sweep.png"):
+        story.append(Image("report_figures/exp6_time_sweep.png", width=5.5*inch, height=2.2*inch))
+    story.append(Spacer(1, 0.1*inch))
     
-    story.append(Spacer(1, 0.15*inch))
     story.append(Paragraph("Observations:", subheading_style))
     exp6_obs = """
-    <b>Left (Original):</b> Baseline spectrogram width and structure.<br/><br/>
-    <b>Middle (Stretched +20%):</b> More time frames (right side longer), but frequency content unchanged. 
-    The spectrogram is <b>horizontally stretched</b>.<br/><br/>
-    <b>Right (Squeezed -20%):</b> Fewer time frames, but again same frequencies. Spectrogram is <b>horizontally compressed</b>.<br/><br/>
-    <b>Impact on hashing:</b> Our hash keys include Δt (time gap between two peaks). If a song plays 20% slower, 
-    all Δt values scale by 1.2. A pair that was 20 frames apart is now 24 frames apart—creating a different hash. 
-    This causes hash mismatches.<br/><br/>
-    <b>Mitigation:</b> Time stretching is less common than pitch shifting, and minor variations (±5%) often fall 
-    within matching tolerance (we use Δt ranges like [1, 50] frames). However, for true robustness, we could:<br/>
-    1. Store normalized time intervals (e.g., as fractions of song duration)<br/>
-    2. Allow fuzzy matching on Δt (e.g., ±10% tolerance)<br/>
-    3. Use a combination of multiple scales
+    <b>Spectrogram Stretching:</b> Time stretching compresses or stretches the spectrogram horizontally (along the time axis).<br/><br/>
+    <b>Time Stretch Sweep:</b> The sweep reveals that **matching votes drop off rapidly as the playback rate deviates from 1.0**. 
+    At 0.8x or 1.2x, matching fails. This is because time stretching scales the time differences `dt` between peaks. 
+    A pair that was 20 frames apart is now 24 frames apart at 1.2x rate, which creates different hash keys `(f1, f2, dt)`. 
+    Time stretch also misaligns offsets across the song, preventing votes from clustering at a single point.<br/><br/>
+    <b>Mitigation:</b> In practice, speed variations are small (±2%). For higher speeds, we can use fuzzy time-matching 
+    or store normalized time offsets in the hash.
     """
     story.append(Paragraph(exp6_obs, body_style))
     story.append(PageBreak())
@@ -339,35 +357,28 @@ def create_report(output_filename="Q3A_Audio_Fingerprinting_Report.pdf"):
     story.append(Paragraph("Summary of Findings:", subheading_style))
     summary_findings = """
     <b>Strong robustness:</b><br/>
-    ✓ Environmental noise (café chatter, background music)<br/>
-    ✓ Volume/gain changes (dB normalization handles this)<br/>
-    ✓ Short clips (<10% of song duration)<br/>
-    ✓ Audio compression artifacts (AAC, MP3)<br/><br/>
+    ✓ Additive background noise (café chatter, restaurant noise)<br/>
+    ✓ Volume/gain changes (handled by normalization)<br/>
+    ✓ Short clips (<10 seconds)<br/>
+    ✓ Audio compression artifacts (MP3/AAC encoding)<br/><br/>
     
     <b>Weak points:</b><br/>
-    ✗ Pitch shifts >1 semitone (absolute frequency bins fail)<br/>
-    ✗ Significant time stretching >10% (Δt scaling fails)<br/>
-    ✗ Heavily reverb/echo (smears peaks in time-frequency)<br/><br/>
+    ✗ Pitch transpositions (shifts absolute frequency bins)<br/>
+    ✗ Playback speed variations (skews Δt offsets)<br/>
+    ✗ Heavy echo/reverb (smears constellation peaks)<br/><br/>
     """
     story.append(Paragraph(summary_findings, body_style))
     
-    story.append(Paragraph("Proposed Improvements:", subheading_style))
+    story.append(Paragraph("Proposed Improvements for Robustness:", subheading_style))
     improvements = """
-    <b>1. Pitch Invariance (Priority: HIGH)</b><br/>
-    Replace absolute frequency pairs with relative intervals: use (f2 - f1, Δt) as hash keys instead of (f1, f2, Δt). 
-    This makes the system immune to global pitch shifts. A melody shifted up/down by N semitones still has the same 
-    interval pattern.<br/><br/>
+    <b>1. Pitch Invariance (High Priority)</b><br/>
+    Use logarithmic frequency binning and map hash keys as relative intervals: `(f2 - f1, dt)`. Since a pitch transposition 
+    adds a constant shift in log-frequency, the interval difference remains invariant. This allows matching songs 
+    even when transpositions are applied.<br/><br/>
     
-    <b>2. Time-Scale Invariance (Priority: MEDIUM)</b><br/>
-    Normalize Δt to a reference (e.g., as a fraction of local region size) or use fuzzy matching with ±15% tolerance 
-    on time offsets. This handles moderate playback speed variations.<br/><br/>
-    
-    <b>3. Multi-Scale Matching (Priority: MEDIUM)</b><br/>
-    Extract peaks at multiple frequency resolutions. Some peaks are global (slow-evolving harmonics), others are 
-    local (fast transients). Multiple scales capture both.<br/><br/>
-    
-    <b>4. Confidence Scoring (Priority: LOW)</b><br/>
-    Weight hash matches by peak prominence (stronger peaks = more votes). Rare, weak peaks carry less confidence.
+    <b>2. Time-Scale Invariance (Medium Priority)</b><br/>
+    Perform match queries against a grid of stretch ratios (e.g. search at 0.95x, 1.0x, 1.05x speed) or permit fuzzy 
+    binning on the time interval `dt` (allowing e.g. ±10% variation) to avoid key misses.
     """
     story.append(Paragraph(improvements, body_style))
     
