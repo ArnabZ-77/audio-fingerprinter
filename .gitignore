@@ -1,0 +1,5 @@
+song_library/
+query_clips/
+__pycache__/
+temp_*
+.DS_Store
