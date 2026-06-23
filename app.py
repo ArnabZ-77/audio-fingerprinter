@@ -472,10 +472,11 @@ else:
             
             # Find the actual file in song_library
             song_path = None
-            for f in os.listdir("song_library"):
-                if os.path.splitext(f)[0] == selected_song:
-                    song_path = os.path.join("song_library", f)
-                    break
+            if os.path.exists("song_library"):
+                for f in os.listdir("song_library"):
+                    if os.path.splitext(f)[0] == selected_song:
+                        song_path = os.path.join("song_library", f)
+                        break
             
             # Duration and offset selection
             clip_dur = st.slider("Clip Duration (seconds)", 3, 20, 10, 1)
@@ -491,106 +492,109 @@ else:
         with col_c2:
             st.markdown("#### 📺 Simulation Output & Visualizations")
             
-            if run_sim and song_path:
-                with st.spinner("Synthesizing audio snippet and running distortion algorithms..."):
-                    # 1. Load the clean snippet
-                    try:
-                        y_clean, sr = librosa.load(song_path, sr=22050, offset=start_offset, duration=clip_dur)
-                    except Exception as e:
-                        st.error(f"Error loading target song: {e}")
-                        y_clean = None
-                    
-                    if y_clean is not None:
-                        # 2. Apply Pitch Shift
-                        if pitch_shift != 0.0:
-                            y_mutated = librosa.effects.pitch_shift(y_clean, sr=sr, n_steps=pitch_shift)
-                        else:
-                            y_mutated = y_clean.copy()
+            if run_sim:
+                if song_path is None or not os.path.exists("song_library"):
+                    st.warning("⚠️ **Source Audio Files Missing**: The `song_library/` directory is not available on this server host (it is gitignored to keep repository sizes small). Running audio mutations requires local access to original audio tracks. Please run the application locally or upload any query clip directly in the **🔍 IDENTIFY** tab!")
+                else:
+                    with st.spinner("Synthesizing audio snippet and running distortion algorithms..."):
+                        # 1. Load the clean snippet
+                        try:
+                            y_clean, sr = librosa.load(song_path, sr=22050, offset=start_offset, duration=clip_dur)
+                        except Exception as e:
+                            st.error(f"Error loading target song: {e}")
+                            y_clean = None
                         
-                        # 3. Apply Time Stretch
-                        if time_stretch != 1.0:
-                            y_mutated = librosa.effects.time_stretch(y_mutated, rate=time_stretch)
-                        
-                        # 4. Apply Gaussian Noise
-                        if noise_level > 0.0:
-                            noise = np.random.normal(0, noise_level, len(y_mutated))
-                            y_mutated = y_mutated + noise
-                        
-                        # 5. Write to temporary wav file
-                        temp_robust_path = "temp_robust_query.wav"
-                        sf.write(temp_robust_path, y_mutated, sr)
-                        
-                        # 6. Playback Mutated Clip
-                        st.write("🔊 **Mutated Audio Playback**")
-                        st.audio(temp_robust_path)
-                        
-                        # 7. Run Match clip
-                        pred_song, votes, score_chart, offsets, stft_mut, peaks_mut, m_mut = fp.match_clip(
-                            temp_robust_path, db,
-                            threshold_db=tuning_threshold,
-                            neighborhood_size=tuning_neighborhood,
-                            target_zone_dt=tuning_dt,
-                            target_zone_df=tuning_df
-                        )
-                        
-                        # 8. Success / Failure / Mismatch Banner
-                        if pred_song == selected_song:
-                            st.markdown(f"""
-                            <div class='success-panel'>
-                                <h4 style='color: #00FF66; margin: 0; font-weight:800;'>✅ SUCCESSFUL IDENTIFICATION</h4>
-                                <p style='color: #E2F1F1; margin: 6px 0 0 0; font-size:14px;'>The system successfully matched the distorted clip to <b>{pred_song}</b> with <b>{votes}</b> alignment votes!</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        elif pred_song == "Unknown / No Match":
-                            st.markdown(f"""
-                            <div class='warning-panel'>
-                                <h4 style='color: #FFA500; margin: 0; font-weight:800;'>⚠️ RECOGNITION FAILURE (NO MATCH)</h4>
-                                <p style='color: #E2F1F1; margin: 6px 0 0 0; font-size:14px;'>The applied distortions were too severe. The clip did not cross the matching threshold.</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"""
-                            <div class='danger-panel'>
-                                <h4 style='color: #FF3333; margin: 0; font-weight:800;'>❌ MISMATCHED TRACK</h4>
-                                <p style='color: #E2F1F1; margin: 6px 0 0 0; font-size:14px;'>The distortion caused a false match! The system predicted <b>{pred_song}</b> instead of <b>{selected_song}</b>.</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        # 9. Compare Clean vs Distorted Spectrograms
-                        st.write("---")
-                        st.write("**STFT Spectrogram Comparison (Clean vs. Mutated)**")
-                        
-                        # Generate clean spectrogram & peaks
-                        stft_clean = fp.compute_spectrogram(y_clean, sr)
-                        peaks_clean = fp.get_constellation_map(stft_clean, threshold_db=tuning_threshold, neighborhood_size=tuning_neighborhood)
-                        
-                        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4))
-                        fig.patch.set_facecolor('#0E1111')
-                        ax1.set_facecolor('#0E1111')
-                        ax2.set_facecolor('#0E1111')
-                        
-                        # Clean Spectrogram
-                        ax1.imshow(stft_clean, origin='lower', aspect='auto', cmap='magma', alpha=0.6)
-                        if len(peaks_clean) > 0:
-                            tc, fc = zip(*peaks_clean)
-                            ax1.scatter(tc, fc, color='#00FFCC', s=2.5, label="Clean Peaks")
-                        ax1.set_title("Clean Reference Snippet Peaks", color="white", fontsize=9, fontweight='bold')
-                        ax1.tick_params(colors='gray', labelsize=8)
-                        ax1.set_xlabel("Time Frames", color="#758A8A", fontsize=8)
-                        ax1.set_ylabel("Frequency Bins", color="#758A8A", fontsize=8)
-                        
-                        # Distorted Spectrogram
-                        ax2.imshow(stft_mut, origin='lower', aspect='auto', cmap='magma', alpha=0.6)
-                        if len(peaks_mut) > 0:
-                            tm, fm = zip(*peaks_mut)
-                            ax2.scatter(tm, fm, color='red', s=2.5, label="Mutated Peaks")
-                        ax2.set_title("Mutated Query Snippet Peaks", color="white", fontsize=9, fontweight='bold')
-                        ax2.tick_params(colors='gray', labelsize=8)
-                        ax2.set_xlabel("Time Frames", color="#758A8A", fontsize=8)
-                        
-                        plt.tight_layout()
-                        st.pyplot(fig)
-                        plt.close()
+                        if y_clean is not None:
+                            # 2. Apply Pitch Shift
+                            if pitch_shift != 0.0:
+                                y_mutated = librosa.effects.pitch_shift(y_clean, sr=sr, n_steps=pitch_shift)
+                            else:
+                                y_mutated = y_clean.copy()
+                            
+                            # 3. Apply Time Stretch
+                            if time_stretch != 1.0:
+                                y_mutated = librosa.effects.time_stretch(y_mutated, rate=time_stretch)
+                            
+                            # 4. Apply Gaussian Noise
+                            if noise_level > 0.0:
+                                noise = np.random.normal(0, noise_level, len(y_mutated))
+                                y_mutated = y_mutated + noise
+                            
+                            # 5. Write to temporary wav file
+                            temp_robust_path = "temp_robust_query.wav"
+                            sf.write(temp_robust_path, y_mutated, sr)
+                            
+                            # 6. Playback Mutated Clip
+                            st.write("🔊 **Mutated Audio Playback**")
+                            st.audio(temp_robust_path)
+                            
+                            # 7. Run Match clip
+                            pred_song, votes, score_chart, offsets, stft_mut, peaks_mut, m_mut = fp.match_clip(
+                                temp_robust_path, db,
+                                threshold_db=tuning_threshold,
+                                neighborhood_size=tuning_neighborhood,
+                                target_zone_dt=tuning_dt,
+                                target_zone_df=tuning_df
+                            )
+                            
+                            # 8. Success / Failure / Mismatch Banner
+                            if pred_song == selected_song:
+                                st.markdown(f"""
+                                <div class='success-panel'>
+                                    <h4 style='color: #00FF66; margin: 0; font-weight:800;'>✅ SUCCESSFUL IDENTIFICATION</h4>
+                                    <p style='color: #E2F1F1; margin: 6px 0 0 0; font-size:14px;'>The system successfully matched the distorted clip to <b>{pred_song}</b> with <b>{votes}</b> alignment votes!</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            elif pred_song == "Unknown / No Match":
+                                st.markdown(f"""
+                                <div class='warning-panel'>
+                                    <h4 style='color: #FFA500; margin: 0; font-weight:800;'>⚠️ RECOGNITION FAILURE (NO MATCH)</h4>
+                                    <p style='color: #E2F1F1; margin: 6px 0 0 0; font-size:14px;'>The applied distortions were too severe. The clip did not cross the matching threshold.</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"""
+                                <div class='danger-panel'>
+                                    <h4 style='color: #FF3333; margin: 0; font-weight:800;'>❌ MISMATCHED TRACK</h4>
+                                    <p style='color: #E2F1F1; margin: 6px 0 0 0; font-size:14px;'>The distortion caused a false match! The system predicted <b>{pred_song}</b> instead of <b>{selected_song}</b>.</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            
+                            # 9. Compare Clean vs Distorted Spectrograms
+                            st.write("---")
+                            st.write("**STFT Spectrogram Comparison (Clean vs. Mutated)**")
+                            
+                            # Generate clean spectrogram & peaks
+                            stft_clean = fp.compute_spectrogram(y_clean, sr)
+                            peaks_clean = fp.get_constellation_map(stft_clean, threshold_db=tuning_threshold, neighborhood_size=tuning_neighborhood)
+                            
+                            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4))
+                            fig.patch.set_facecolor('#0E1111')
+                            ax1.set_facecolor('#0E1111')
+                            ax2.set_facecolor('#0E1111')
+                            
+                            # Clean Spectrogram
+                            ax1.imshow(stft_clean, origin='lower', aspect='auto', cmap='magma', alpha=0.6)
+                            if len(peaks_clean) > 0:
+                                tc, fc = zip(*peaks_clean)
+                                ax1.scatter(tc, fc, color='#00FFCC', s=2.5, label="Clean Peaks")
+                            ax1.set_title("Clean Reference Snippet Peaks", color="white", fontsize=9, fontweight='bold')
+                            ax1.tick_params(colors='gray', labelsize=8)
+                            ax1.set_xlabel("Time Frames", color="#758A8A", fontsize=8)
+                            ax1.set_ylabel("Frequency Bins", color="#758A8A", fontsize=8)
+                            
+                            # Distorted Spectrogram
+                            ax2.imshow(stft_mut, origin='lower', aspect='auto', cmap='magma', alpha=0.6)
+                            if len(peaks_mut) > 0:
+                                tm, fm = zip(*peaks_mut)
+                                ax2.scatter(tm, fm, color='red', s=2.5, label="Mutated Peaks")
+                            ax2.set_title("Mutated Query Snippet Peaks", color="white", fontsize=9, fontweight='bold')
+                            ax2.tick_params(colors='gray', labelsize=8)
+                            ax2.set_xlabel("Time Frames", color="#758A8A", fontsize=8)
+                            
+                            plt.tight_layout()
+                            st.pyplot(fig)
+                            plt.close()
             else:
                 st.info("Configure the parameters in the left panel and click 'Synthesize & Identify' to run the robustness simulation.")
 
