@@ -75,16 +75,20 @@ def create_report(output_filename="Q3A_Audio_Fingerprinting_Report.pdf"):
     student_style = ParagraphStyle(
         'StudentInfo',
         parent=styles['Normal'],
-        fontSize=11,
+        fontSize=10.5,
         alignment=TA_CENTER,
         textColor=HexColor('#333333'),
-        leading=16,
+        leading=15,
         spaceAfter=12
     )
     student_info = """
     <b>Prepared By:</b><br/>
     Arnab Patra (Roll: 240186)<br/>
-    Akshita (Roll: 240090)<br/>
+    Akshita (Roll: 240090)<br/><br/>
+    <b>Live Deployed Streamlit App:</b><br/>
+    <font color="#1f4788"><u>https://arnabz-77-audio-fingerprinter-app.streamlit.app</u></font><br/><br/>
+    <b>GitHub Source Code Repository:</b><br/>
+    <font color="#1f4788"><u>https://github.com/ArnabZ-77/audio-fingerprinter</u></font>
     """
     story.append(Paragraph(student_info, student_style))
     story.append(Spacer(1, 0.2*inch))
@@ -384,7 +388,7 @@ def create_report(output_filename="Q3A_Audio_Fingerprinting_Report.pdf"):
     
     # Build PDF
     doc.build(story)
-    print(f"\n✅ PDF Report saved: {output_filename}")
+    print(f"\n[SUCCESS] PDF Report saved: {output_filename}")
 
 if __name__ == "__main__":
     create_report()

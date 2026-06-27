@@ -372,7 +372,7 @@ else:
             # Candidate Scores Table 
             st.write("### Candidate Scores (Top 5)")
             df_scores = pd.DataFrame(score_chart, columns=["Candidate Track", "Hits Score"])
-            st.dataframe(df_scores.head(5), use_container_width=True)
+            st.dataframe(df_scores.head(5), width="stretch")
 
             # --- VISUAL PIPELINE INTERMEDIATE STEPS ---
             st.markdown("---")
@@ -656,7 +656,7 @@ else:
                 st.markdown(f"<div class='metric-box'><div class='metric-title'>🎯 SUCCESS RATE</div><div class='metric-value'>{success_rate:.1f}%</div><div class='metric-footer'>Overall confidence</div></div>", unsafe_allow_html=True)
             
             st.write("### Batch Results Table")
-            st.dataframe(df_batch, use_container_width=True)
+            st.dataframe(df_batch, width="stretch")
             
             csv_data = df_batch.to_csv(index=False).encode('utf-8')
             st.download_button(
